@@ -190,16 +190,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    # one page, one action, and Vercel rewrites the path before the function
+    # sees it - so don't route on self.path, just answer by method.
     def do_GET(self):
-        # on Vercel index.html is served statically; this is the local path
-        if self.path.split("?")[0] in ("/", "/index.html", "/api/index"):
-            with open(PAGE, "rb") as f:
-                return self._send(200, f.read(), "text/html; charset=utf-8")
-        self._send(404, b'{"error":"not found"}')
+        with open(PAGE, "rb") as f:
+            self._send(200, f.read(), "text/html; charset=utf-8")
 
     def do_POST(self):
-        if self.path.split("?")[0] not in ("/run", "/api/index"):
-            return self._send(404, b'{"error":"not found"}')
         try:
             body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             fields, files = parse_multipart(self.headers.get("Content-Type", ""), body)

@@ -2,3 +2,6 @@ __pycache__/
 *.xlsx
 *.xlsm
 .vercel
+# written by `vercel build` from requirements.txt
+pyproject.toml
+uv.lock
