@@ -58,7 +58,7 @@ def load_export(path):
     for i, r in enumerate(rows):
         if r[0] in ('Generated On', 'Date Range', 'Order Status Filter', 'Total Orders'):
             meta[r[0]] = r[1]
-        if r[0] == 'Customer Phone':
+        if 'Customer Phone' in r:
             header_idx = i
             break
 
@@ -66,16 +66,21 @@ def load_export(path):
         raise ValueError(f"Could not find header row in {path}")
 
     header = rows[header_idx]
-    data = [r for r in rows[header_idx + 1:] if r[2] is not None]  # r[2] = City
+    city_idx = header.index('City')
+    data = [r for r in rows[header_idx + 1:] if r[city_idx] is not None]
     return meta, header, data
 
 
-def build_cancelled_report(data, date_label):
+def build_cancelled_report(data, header, date_label):
+    # Column positions shift as the export gains columns over time, so
+    # they're looked up by header name instead of hardcoded here.
+    city_idx = header.index('City')
+    price_idx = header.index('Total Price')
     canc = defaultdict(list)
     for r in data:
-        city = r[2]
+        city = r[city_idx]
         try:
-            price = float(r[12])
+            price = float(r[price_idx])
         except (TypeError, ValueError):
             price = 0.0
         canc[city].append(price)
@@ -141,7 +146,7 @@ def main():
         print(f"WARNING: Order Status Filter is {status!r}, expected 'Cancelled' or 'Marked for Cancellation'.")
         print("Proceeding anyway — verify this is the right file.\n")
 
-    report, canc = build_cancelled_report(data, date_label)
+    report, canc = build_cancelled_report(data, header, date_label)
     print(report)
 
     flags = build_flags(canc)

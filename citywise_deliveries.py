@@ -36,18 +36,13 @@ from collections import defaultdict
 
 import openpyxl
 
-# Column indices in the export (0-based), based on the header row:
-# Customer Phone, Delivery Address, City, Created At, Order Placed At,
-# Order Created By, Delivery Partner, Shipped At, Delivered At,
-# Delivery TAT, Full Delivery TAT, Cancelled At, Total Price, Payment Mode,
-# Order Status, Shipping Status, First Action Time (mins), Order Id,
-# Internal Stock Transfer Order
-COL_CITY = 2
-COL_DELIVERY_PARTNER = 6
-COL_DELIVERED_AT = 8
-COL_TOTAL_PRICE = 12
-
-HEADER_ROW_INDEX = 6  # 0-based index of the row containing column names
+# Column positions shift as the export gains columns over time, so they're
+# looked up by header name at load time instead of hardcoded here.
+CITY_COL = "City"
+DELIVERY_PARTNER_COL = "Delivery Partner"
+DELIVERED_AT_COL = "Delivered At"
+TOTAL_PRICE_COL = "Total Price"
+PHONE_COL = "Customer Phone"  # marks the header row
 
 MONTH_NAMES = {
     "01": "January", "02": "February", "03": "March", "04": "April",
@@ -105,27 +100,33 @@ def build_report(
     ws = wb[sheet_name] if sheet_name else wb.active
 
     rows = list(ws.iter_rows(values_only=True))
-    data_rows = rows[HEADER_ROW_INDEX + 1:]
+    header_row_idx = next(i for i, r in enumerate(rows) if r and PHONE_COL in r)
+    header = rows[header_row_idx]
+    col_city = header.index(CITY_COL)
+    col_delivery_partner = header.index(DELIVERY_PARTNER_COL)
+    col_delivered_at = header.index(DELIVERED_AT_COL)
+    col_total_price = header.index(TOTAL_PRICE_COL)
+    data_rows = rows[header_row_idx + 1:]
 
     city_totals = defaultdict(float)
     city_counts = defaultdict(int)
     city_partners = defaultdict(set)
 
     for r in data_rows:
-        delivered_at = r[COL_DELIVERED_AT]
+        delivered_at = r[col_delivered_at]
         if not delivered_at or not str(delivered_at).startswith(target_date):
             continue
 
-        city = r[COL_CITY] or "Unknown"
+        city = r[col_city] or "Unknown"
         try:
-            price = float(r[COL_TOTAL_PRICE])
+            price = float(r[col_total_price])
         except (TypeError, ValueError):
             price = 0.0
 
         city_totals[city] += price
         city_counts[city] += 1
 
-        partner = r[COL_DELIVERY_PARTNER]
+        partner = r[col_delivery_partner]
         partner_clean = str(partner).strip() if partner is not None else ""
         if partner_clean not in NO_PARTNER_VALUES:
             city_partners[city].add(partner_clean)

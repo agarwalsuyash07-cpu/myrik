@@ -88,7 +88,7 @@ def load_workbook_rows(path):
     header = None
 
     for i, row in enumerate(ws.iter_rows(values_only=True), start=1):
-        if row and row[0] == "Customer Phone":
+        if row and "Customer Phone" in row:
             header_row_idx = i
             header = list(row)
             break
